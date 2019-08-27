@@ -22,7 +22,7 @@
 
 1. `Tesseract`의 정확성이 심각하게 떨어짐
 2. `Tesseract`를 이용한 `Handwriting`을 이용할 이유가 사라짐
-3. ![](C:\Users\dlfwj\Desktop\tesseract 결과.jpg)
+3. ![](tesseract_result.jpg)
 
 <hr>
 
