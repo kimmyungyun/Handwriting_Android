@@ -7,7 +7,6 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:id="@+id/main_activity"
-    android:weightSum="5"
     tools:context=".MainActivity" android:baselineAligned="false">
 
 </LinearLayout>

@@ -16,9 +16,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
-
-import com.googlecode.tesseract.android.TessBaseAPI;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -39,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private NotepadView n;
     private LinearLayout m;
     private Button calc_btn, clear_btn;
+    private TextView answer_tv;
     // Used to load the 'native-lib' library on application startup.
     //tessBaseAPI   Link : https://cosmosjs.blog.me/220937785735
     private String datapath = "";   //언어 데이터 세이브 경로
@@ -75,8 +75,9 @@ public class MainActivity extends AppCompatActivity {
         public void onClick(View view) {
             int id_number = view.getId();
             if(id_number == R.id.calc_btn){
-                //n.setImageBitmap(n.getCanvasBitmap());
+
                 FindNumberInImage(n.getCanvasBitmap());
+
                 //MediaStore.Images.Media.insertImage(getContentResolver(), n.getCanvasBitmap(), "title", "descripton");
 
                 Log.d("Calc_btn", "Btn click");
@@ -100,7 +101,9 @@ public class MainActivity extends AppCompatActivity {
         main = (LinearLayout)findViewById(R.id.main_activity);
         n = new NotepadView(this, Color.BLACK);    //붓색깔을 검은색으로
         m = (LinearLayout) View.inflate(this, R.layout.btnview, null);
-        n.setLayoutParams(initLayout(4));
+        answer_tv = (TextView)m.findViewById(R.id.answer_textView);
+
+        n.setLayoutParams(initLayout(3));
         m.setLayoutParams(initLayout(1));
         main.addView(n);
         main.addView(m);
@@ -136,7 +139,9 @@ public class MainActivity extends AppCompatActivity {
         MediaStore.Images.Media.insertImage(getContentResolver(), Image, "title", "descripton");
 
         Find_Number find_number = new Find_Number(Image, this.datapath);
-
+        Log.d("TAGTAG1111", find_number.getAnswer());
+        String ans = find_number.getAnswer();
+        answer_tv.setText(ans);
 /*
         result = Bitmap.createBitmap(img.cols(),
                 img.rows(), Bitmap.Config.ARGB_8888);

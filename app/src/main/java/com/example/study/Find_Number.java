@@ -1,7 +1,6 @@
 package com.example.study;
 
 import android.graphics.Bitmap;
-import android.provider.ContactsContract;
 import android.util.Log;
 
 import com.googlecode.tesseract.android.TessBaseAPI;
@@ -9,9 +8,7 @@ import com.googlecode.tesseract.android.TessBaseAPI;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
 import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -49,52 +46,44 @@ public class Find_Number {
 
         //관심 영역 추출
         ROI = ROI_Extractor(box);
-//        PriorityQueue<Roi_class> tmp_rois;
         List<Roi_class> tmp_rois;
-        mTess.setImage(Image);
-        String AAA = mTess.getUTF8Text();
-        Log.d("Answer Answer", AAA);
         /****************Tess API 실행*******************/
         Rect tmp_rect;
         Mat tmp_mat;
         if(ROI != null)
         {
-//            tmp_rois = new PriorityQueue<>(ROI);
             tmp_rois = new ArrayList<>(ROI);
-//            int i=0;
-//            while(!tmp_rois.isEmpty())
             for(int i=0; i<tmp_rois.size(); i++)
             {
-                //tmp_rect = tmp_rois.poll().rect;
                 tmp_rect = tmp_rois.get(i).rect;
                 tmp_mat = img.submat(tmp_rect);
                 Bitmap tmp_bitmap = Bitmap.createBitmap(tmp_rect.width, tmp_rect.height, Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(tmp_mat, tmp_bitmap);
                 mTess.setImage(tmp_bitmap);
                 answer += mTess.getUTF8Text();
-                i++;
+
             }
             Log.d("Answer", "answer : "+answer);
         }
         /******************************************************/
-        /*************  Draw ROI Method...******/
-        if(ROI != null) {
-//            tmp_rois = new PriorityQueue<>(ROI);
-            tmp_rois = new ArrayList<>(ROI);
-
-            Log.d("Size : ", "tmp_rois size : "+tmp_rois.size());
-//            int i= 0;
-            for(int i=0; i<tmp_rois.size(); i++){
-//            while(!tmp_rois.isEmpty()){
-//                tmp_rect = tmp_rois.poll().rect;
-                tmp_rect = tmp_rois.get(i).rect;
-                Imgproc.rectangle(img, tmp_rect, new Scalar(0, 0, 0));
-
-                Imgproc.putText(img, ""+i, new Point(tmp_rect.x, tmp_rect.y), 1, 4, new Scalar(255, 0, 0));
-                Log.d("Rect", "Rect X" + tmp_rect.x + " Rect Y" + tmp_rect.y + " Rect width " + tmp_rect.width + " Rect height " + tmp_rect.height);
-                //i++;
-            }
-        }
+//        /*************  Draw ROI Method...******/
+//        if(ROI != null) {
+////            tmp_rois = new PriorityQueue<>(ROI);
+//            tmp_rois = new ArrayList<>(ROI);
+//
+//            Log.d("Size : ", "tmp_rois size : "+tmp_rois.size());
+////            int i= 0;
+//            for(int i=0; i<tmp_rois.size(); i++){
+////            while(!tmp_rois.isEmpty()){
+////                tmp_rect = tmp_rois.poll().rect;
+//                tmp_rect = tmp_rois.get(i).rect;
+//                Imgproc.rectangle(img, tmp_rect, new Scalar(0, 0, 0));
+//
+//                Imgproc.putText(img, ""+i, new Point(tmp_rect.x, tmp_rect.y), 1, 4, new Scalar(255, 0, 0));
+//                Log.d("Rect", "Rect X" + tmp_rect.x + " Rect Y" + tmp_rect.y + " Rect width " + tmp_rect.width + " Rect height " + tmp_rect.height);
+//                //i++;
+//            }
+//        }
         /*********************************/
         result = Bitmap.createBitmap(img.cols(),
                 img.rows(), Bitmap.Config.RGB_565);
@@ -112,7 +101,7 @@ public class Find_Number {
         return result;
     }
 
-    //ROI 추출 함수
+    //우선순위 큐에 맞춘 ROI 추출 함수
     //Link : https://yeolco.tistory.com/57
 //    public PriorityQueue<Roi_class> ROI_Extractor(Box b){
 //        List<MatOfPoint> contours = b.getList();
@@ -161,8 +150,9 @@ public class Find_Number {
     public Bitmap getResult() {
         return result;
     }
-    public void setResult(Bitmap result) {
-        this.result = result;
+
+    public String getAnswer() {
+        return answer;
     }
 
 }
