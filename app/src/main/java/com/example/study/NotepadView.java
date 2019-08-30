@@ -27,7 +27,7 @@ public class NotepadView extends View {
         drawPaint = new Paint();
         drawPaint.setColor(color);
         drawPaint.setAntiAlias(true);
-        drawPaint.setStrokeWidth(20);
+        drawPaint.setStrokeWidth(10);
         drawPaint.setStyle(Paint.Style.STROKE);
         canvasPaint = new Paint(Paint.DITHER_FLAG);
     }

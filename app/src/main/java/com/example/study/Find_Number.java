@@ -1,93 +1,98 @@
 package com.example.study;
 
+import android.app.Activity;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
+import android.os.SystemClock;
 import android.util.Log;
 
-import com.googlecode.tesseract.android.TessBaseAPI;
-
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.tensorflow.lite.Interpreter;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Find_Number {
+    private static final char Label[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'
+            ,'R','S','T','U','V','W','X','Y','Z','a','b','d','e','f','g','h','n','q','r','t'};
+    private static final int BATCH_SIZE = 1;
+    public static final int IMG_HEIGHT = 28;
+    public static final int IMG_WIDTH = 28;
+    private static final int NUM_CHANNEL = 1;
+    private static final int NUM_CLASSES = 47;
+
+
     private Bitmap result;
     private Mat Gray_img;
     private Box box;
-//    private PriorityQueue<Roi_class> ROI;
+    private Interpreter tf_lite;
     List<Roi_class> ROI;
-    private String language = "eng";
-    //tessBaseAPI   Link : https://cosmosjs.blog.me/220937785735
-    private TessBaseAPI mTess;
-    private String datapath;
+    private ByteBuffer mImageData;
+    private final int[] mImagePixels = new int[IMG_WIDTH * IMG_HEIGHT];
+    private final float[][] mResult = new float[1][NUM_CLASSES];
+    private float[][][][] Test_Img = new float[1][IMG_HEIGHT][IMG_WIDTH][NUM_CHANNEL];
+
     private String answer="";
-    public Find_Number(Bitmap Image, String datapath)
+    public Find_Number(Bitmap Image, String datapath, Activity activity)
     {
-        this.datapath = datapath;
-        Mat img = new Mat();
+        /**** Keras Model Load*******/
+        try {
+            tf_lite = getTfliteInterpreter(datapath, activity);
+            mImageData = ByteBuffer.allocate(
+                    4 * 1 * IMG_HEIGHT * IMG_WIDTH * NUM_CHANNEL
+            );
+            mImageData.order(ByteOrder.nativeOrder());
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
+
+        Mat img = new Mat(Image.getWidth(), Image.getHeight(), CvType.CV_8U);
         Gray_img = new Mat();
         Utils.bitmapToMat(Image, img);
-        //OCR TessAPI 초기화
-        TessAPI_init();
 
         //그레이 영역으로 변환
         Imgproc.cvtColor(img, Gray_img, Imgproc.COLOR_BGR2GRAY);
+        Mat edge = new Mat();
+        Imgproc.Canny(Gray_img, edge, 50, 50);
 
-        //이미지 흑백 반전을 위한 작업
-        Mat reverse_img = new Mat();
-        Imgproc.threshold(Gray_img, reverse_img, 0.5, 1, Imgproc.THRESH_BINARY_INV);
+        Imgproc.dilate(edge, edge,Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(8, 8)), new Point(), 2);
+        edge.copyTo(img);
 
         //외곽선 검색
-        box = Find_Contours(reverse_img);
+        box = Find_Contours(img);
 
         //관심 영역 추출
-        ROI = ROI_Extractor(box);
-        List<Roi_class> tmp_rois;
-        /****************Tess API 실행*******************/
-        Rect tmp_rect;
-        Mat tmp_mat;
-        if(ROI != null)
-        {
-            tmp_rois = new ArrayList<>(ROI);
-            for(int i=0; i<tmp_rois.size(); i++)
-            {
-                tmp_rect = tmp_rois.get(i).rect;
-                tmp_mat = img.submat(tmp_rect);
-                Bitmap tmp_bitmap = Bitmap.createBitmap(tmp_rect.width, tmp_rect.height, Bitmap.Config.ARGB_8888);
-                Utils.matToBitmap(tmp_mat, tmp_bitmap);
-                mTess.setImage(tmp_bitmap);
-                answer += mTess.getUTF8Text();
+        ROI = ROI_Extractor(box, img);
+        for(int i=0; i<ROI.size(); i++) {
+            long startTime = SystemClock.uptimeMillis();
 
-            }
-            Log.d("Answer", "answer : "+answer);
+            int x = classify(ROI.get(i).mat);
+            //int x = classify(ROI.get(i).bitmap);
+            long endTime = SystemClock.uptimeMillis();
+            long timeCost = endTime - startTime;
+            //MediaStore.Images.Media.insertImage(activity.getContentResolver(), ROI.get(i).bitmap, "title", "descripton");
+
+            Log.d("Answer", ": "+x+" Time Cost "+timeCost);
+            answer += Label[x];
         }
-        /******************************************************/
-//        /*************  Draw ROI Method...******/
-//        if(ROI != null) {
-////            tmp_rois = new PriorityQueue<>(ROI);
-//            tmp_rois = new ArrayList<>(ROI);
-//
-//            Log.d("Size : ", "tmp_rois size : "+tmp_rois.size());
-////            int i= 0;
-//            for(int i=0; i<tmp_rois.size(); i++){
-////            while(!tmp_rois.isEmpty()){
-////                tmp_rect = tmp_rois.poll().rect;
-//                tmp_rect = tmp_rois.get(i).rect;
-//                Imgproc.rectangle(img, tmp_rect, new Scalar(0, 0, 0));
-//
-//                Imgproc.putText(img, ""+i, new Point(tmp_rect.x, tmp_rect.y), 1, 4, new Scalar(255, 0, 0));
-//                Log.d("Rect", "Rect X" + tmp_rect.x + " Rect Y" + tmp_rect.y + " Rect width " + tmp_rect.width + " Rect height " + tmp_rect.height);
-//                //i++;
-//            }
-//        }
-        /*********************************/
-        result = Bitmap.createBitmap(img.cols(),
-                img.rows(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(img, result);
+
+
     }
     //Contours 찾아내는 함수
     //Link : https://yeolco.tistory.com/57
@@ -101,51 +106,60 @@ public class Find_Number {
         return result;
     }
 
-    //우선순위 큐에 맞춘 ROI 추출 함수
-    //Link : https://yeolco.tistory.com/57
-//    public PriorityQueue<Roi_class> ROI_Extractor(Box b){
-//        List<MatOfPoint> contours = b.getList();
-//        PriorityQueue<Roi_class> result_Rect = new PriorityQueue<>();
-//        MatOfPoint tmp_point;
-//        Roi_class tmp_rect;
-//        if(contours.size() == 0)
-//            return null;
-//
-//        for(int idx = 0; idx>=0; idx = (int)b.getMat().get(0, idx)[0])
-//        {
-//            tmp_point = contours.get(idx);
-//            tmp_rect = new Roi_class(Imgproc.boundingRect(tmp_point));
-//
-//            result_Rect.offer(tmp_rect);
-//        }
-//        return result_Rect;
-//    }
 
-    public List<Roi_class> ROI_Extractor(Box b){
+    //ROI Rect 정보, 1*28*28 로 리사이즈된 Mat
+    public List<Roi_class> ROI_Extractor(Box b, Mat img){
         List<MatOfPoint> contours = b.getList();
         List<Roi_class> result_Rect = new ArrayList<>();
         MatOfPoint tmp_point;
-        Roi_class tmp_rect;
+        Roi_class tmp_Roi;
+        Rect tmp_rect;
+        Mat tmp_mat_src, tmp_mat_dst;
         if(contours.size() == 0)
             return null;
 
         for(int idx = 0; idx>=0; idx = (int)b.getMat().get(0, idx)[0])
         {
             tmp_point = contours.get(idx);
-            tmp_rect = new Roi_class(Imgproc.boundingRect(tmp_point));
+            tmp_rect = Imgproc.boundingRect(tmp_point);
 
-            result_Rect.add(tmp_rect);
+            tmp_mat_src = new Mat(img, tmp_rect);
+
+            tmp_mat_dst = new Mat();
+            //모델에 넣기위한 이미지 리사이즈
+            Imgproc.resize(tmp_mat_src, tmp_mat_dst, new Size(IMG_WIDTH, IMG_HEIGHT));
+            //Log.d("Img", tmp_mat_dst.dump());
+            Core.multiply(tmp_mat_dst, new Scalar(255), tmp_mat_dst);
+            tmp_mat_dst = tmp_mat_dst.t();
+            Bitmap tmp_bitmap = Bitmap.createBitmap(IMG_WIDTH,
+                    IMG_HEIGHT, Bitmap.Config.RGB_565);
+            Utils.matToBitmap(tmp_mat_dst, tmp_bitmap);
+            tmp_Roi = new Roi_class(tmp_rect, tmp_bitmap, tmp_mat_dst);
+            result_Rect.add(tmp_Roi);
         }
         return result_Rect;
     }
+    // 모델 파일 인터프리터를 생성하는 공통 함수
+    // loadModelFile 함수에 예외가 포함되어 있기 때문에 반드시 try, catch 블록이 필요하다.
+    private Interpreter getTfliteInterpreter(String modelPath, Activity activity) {
+        try {
+            return new Interpreter(loadModelFile(activity, modelPath));
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
-    public void TessAPI_init()
-    {
-        mTess = new TessBaseAPI();
-        mTess.init(this.datapath, language);
-        mTess.setVariable(TessBaseAPI.VAR_CHAR_BLACKLIST, "!?@#$%&*\"\\<>_:;'");
-        mTess.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-
+    // 모델을 읽어오는 함수로, 텐서플로 라이트 홈페이지에 있다.
+    // MappedByteBuffer 바이트 버퍼를 Interpreter 객체에 전달하면 모델 해석을 할 수 있다.
+    private MappedByteBuffer loadModelFile(Activity activity, String modelPath) throws IOException {
+        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(modelPath);
+        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+        FileChannel fileChannel = inputStream.getChannel();
+        long startOffset = fileDescriptor.getStartOffset();
+        long declaredLength = fileDescriptor.getDeclaredLength();
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
     public Bitmap getResult() {
         return result;
@@ -155,4 +169,45 @@ public class Find_Number {
         return answer;
     }
 
+    public int classify(Mat mat)
+    {
+        //convertBitmapToByteBuffer(bitmap);
+        convertBitmapToByteBuffer_v2(mat);
+        Log.d("DeepLearning","Start");
+        tf_lite.run(Test_Img, mResult);
+        Log.d("DeepLearning","End");
+        int mNumber = argmax(mResult[0]);
+
+        return mNumber;
+    }
+    private void convertBitmapToByteBuffer_v2(Mat mat) {
+        if (mImageData == null) {
+            Log.d("mImageData", "null");
+            return;
+        }
+        mImageData.rewind();
+
+
+        for (int i = 0; i < IMG_HEIGHT; ++i) {
+            for (int j = 0; j < IMG_WIDTH; ++j) {
+                double[] temp = mat.get(i, j);
+                float q =  (float)temp[0];
+
+                //mImageData.putFloat(q);
+                Test_Img[0][i][j][0] = q/255.0f;
+            }
+        }
+    }
+
+    private static int argmax(float[] probs){
+        int maxIdx = -1;
+        float maxProb = 0.0f;
+        for (int i = 0; i < probs.length; i++) {
+            if (probs[i] > maxProb) {
+                maxProb = probs[i];
+                maxIdx = i;
+            }
+        }
+        return maxIdx;
+    }
 }

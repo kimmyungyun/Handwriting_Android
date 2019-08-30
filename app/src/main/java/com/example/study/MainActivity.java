@@ -2,8 +2,9 @@ package com.example.study;
 
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.PackageManager;
-import android.content.res.AssetManager;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -25,13 +26,15 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.tensorflow.lite.Interpreter;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 
 public class MainActivity extends AppCompatActivity {
     private LinearLayout main;
@@ -40,10 +43,8 @@ public class MainActivity extends AppCompatActivity {
     private Button calc_btn, clear_btn;
     private TextView answer_tv;
     // Used to load the 'native-lib' library on application startup.
-    //tessBaseAPI   Link : https://cosmosjs.blog.me/220937785735
-    private String datapath = "";   //언어 데이터 세이브 경로
+    private String datapath = "tflite/model.tflite";   //언어 데이터 세이브 경로
     private final int PERMISSIONS_REQUEST_RESULT = 1;
-
     static {
         System.loadLibrary("native-lib");
     }
@@ -84,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
             }
             else if(id_number == R.id.clear_btn){
                 Log.d("Clear"," Btn click");
+                answer_tv.setText("");
                 n.Clear();
             }
         }
@@ -118,37 +120,19 @@ public class MainActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         /***********************/
 
-        /**** TessData initialize*******/
-        init_Tessdata(getFilesDir());
+
+
         /******************************/
     }
-    private void init_Tessdata(File Dir){
-        //언어파일 경로
-        datapath = Dir+"/tesseract/";
-        //트레이닝데이터가 카피되어 있는지 체크
-        checkFile(new File(datapath+"tessdata/"));
-    }
+
     protected void FindNumberInImage(Bitmap Image)
     {
         Bitmap result;
         Mat img = new Mat();
-        Mat Gray_img = new Mat();
         Utils.bitmapToMat(Image, img);
-        img.convertTo(Gray_img, CvType.CV_8UC1);
-        //saveBitmapToJpeg(Image, "Test");
-        MediaStore.Images.Media.insertImage(getContentResolver(), Image, "title", "descripton");
+        Find_Number find_number = new Find_Number(Image, this.datapath, this);
 
-        Find_Number find_number = new Find_Number(Image, this.datapath);
-        Log.d("TAGTAG1111", find_number.getAnswer());
-        String ans = find_number.getAnswer();
-        answer_tv.setText(ans);
-/*
-        result = Bitmap.createBitmap(img.cols(),
-                img.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(Gray_img, result);
-        */
-        result = find_number.getResult();
-        n.setImageBitmap(result);
+        answer_tv.setText(find_number.getAnswer());
     }
     public native String stringFromJNI();
     //Opencv 에러 때문에 작성한 코드
@@ -224,46 +208,6 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
             return;
-        }
-    }
-
-    //copy file to device
-    //Link : https://cosmosjs.blog.me/220937785735
-    private void copyFiles() {
-        try{
-            String filepath = datapath + "/tessdata/eng.traineddata";
-            AssetManager assetManager = getAssets();
-            InputStream instream = assetManager.open("tessdata/eng.traineddata");
-            OutputStream outstream = new FileOutputStream(filepath);
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = instream.read(buffer)) != -1) {
-                outstream.write(buffer, 0, read);
-            }
-            outstream.flush();
-            outstream.close();
-            instream.close();
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    //Link : https://cosmosjs.blog.me/220937785735
-    private void checkFile(File dir){
-        //디렉토리가 없으면 디렉토리를 만들고 그후에 파일을 카피
-        if(!dir.exists()&& dir.mkdirs()) {
-            copyFiles();
-        }
-        //디렉토리가 있지만 파일이 없으면 파일카피 진행
-        if(dir.exists()) {
-            String datafilepath = datapath+ "/tessdata/eng.traineddata";
-            File datafile = new File(datafilepath);
-            if(!datafile.exists()) {
-                copyFiles();
-            }
         }
     }
 

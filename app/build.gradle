@@ -14,6 +14,9 @@ android {
                 cppFlags "-std=c++11"
             }
         }
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
     buildTypes {
         release {
@@ -26,6 +29,11 @@ android {
             path "CMakeLists.txt"
         }
     }
+    //Link : https://pythonkim.tistory.com/133?category=703510 [파이쿵]
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
+    }
 }
 
 dependencies {
@@ -36,6 +44,5 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation project(':opencv')
-    //add tess-two for OCR Project
-    implementation 'com.rmtheis:tess-two:9.0.0'
+    implementation 'org.tensorflow:tensorflow-lite:+'
 }
