@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import org.opencv.android.Utils;
@@ -86,7 +87,7 @@ public class Find_Number {
             //int x = classify(ROI.get(i).bitmap);
             long endTime = SystemClock.uptimeMillis();
             long timeCost = endTime - startTime;
-            //MediaStore.Images.Media.insertImage(activity.getContentResolver(), ROI.get(i).bitmap, "title", "descripton");
+            //Store.Images.Media.insertImage(activity.getContentResolver(), ROI.get(i).bitmap, "title", "descripton");
 
             Log.d("Answer", ": "+x+" Time Cost "+timeCost);
             answer += Label[x];
@@ -122,14 +123,26 @@ public class Find_Number {
         {
             tmp_point = contours.get(idx);
             tmp_rect = Imgproc.boundingRect(tmp_point);
+            if(tmp_rect.y - 5 > 0)
+                tmp_rect.y -= 5;
 
+            //숫자 1과 같은 직선 글자에 대해 더 넓게 Mat 값을 가져오기 위해
+            if(tmp_rect.height > tmp_rect.width * 2)
+            {
+                if(tmp_rect.width * 3 + tmp_rect.x < img.width()) {
+                    tmp_rect.x -= tmp_rect.width;
+                    tmp_rect.width *= 3;
+                }
+            }
             tmp_mat_src = new Mat(img, tmp_rect);
 
             tmp_mat_dst = new Mat();
             //모델에 넣기위한 이미지 리사이즈
             Imgproc.resize(tmp_mat_src, tmp_mat_dst, new Size(IMG_WIDTH, IMG_HEIGHT));
+            Imgproc.threshold(tmp_mat_dst, tmp_mat_dst, 150, 255, Imgproc.THRESH_BINARY);
+            Imgproc.dilate(tmp_mat_dst, tmp_mat_dst, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2, 2)), new Point(), 2);
             //Log.d("Img", tmp_mat_dst.dump());
-            Core.multiply(tmp_mat_dst, new Scalar(255), tmp_mat_dst);
+            //Core.multiply(tmp_mat_dst, new Scalar(255), tmp_mat_dst);
             tmp_mat_dst = tmp_mat_dst.t();
             Bitmap tmp_bitmap = Bitmap.createBitmap(IMG_WIDTH,
                     IMG_HEIGHT, Bitmap.Config.RGB_565);
